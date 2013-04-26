@@ -1,0 +1,2 @@
+cookbook 'apt', :locked_version => '1.8.4'
+cookbook 'postgresql', :git => 'https://github.com/phlipper/chef-postgresql.git', :ref => 'ff499fcff50c1113f74cc32352ebfbede93a06cc'
