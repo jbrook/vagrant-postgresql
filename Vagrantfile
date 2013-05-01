@@ -9,7 +9,6 @@ Vagrant.configure("2") do |config|
   config.vm.box = "ubuntu-12.04-omnibus-chef"
   config.vm.box_url = "https://s3.amazonaws.com/gsc-vagrant-boxes/ubuntu-12.04-omnibus-chef.box"
 
-  # http://bartek.im/blog/2012/12/04/postgresql-92-streaming-primer.html
   postgresql = {
     "version" => '9.2',
     "conf" => {
@@ -53,6 +52,7 @@ Vagrant.configure("2") do |config|
       {
         "username" => "replicator",
         "password" => "replicator",
+        "superuser" => true,
         "login" => true
       }
     ],
@@ -63,7 +63,10 @@ Vagrant.configure("2") do |config|
       { :type => "host",  :db => "all", :user => "all",        :addr => "::1/0",     :method => "trust" }, # FIXME
       #  { :type => "host",  :db => "all", :user => "postgres",   :addr => "127.0.0.1/32", :method => "trust" },
       #  { :type => "host",  :db => "  all", :user => "epg",        :addr => "127.0.0.1/32", :method => "trust" },
-      { :type => "host",  :db => "replication", :user => "replicator", :addr => "127.0.0.1/32", :method => "trust" },
+      { :type => "host",  :db => "replication", :user => "replicator", :addr => "0.0.0.0/0", :method => "trust" },
+      { :type => "hostssl",  :db => "replication", :user => "replicator", :addr => "0.0.0.0/0", :method => "trust" },
+      { :type => "host",  :db => "replication", :user => "all", :addr => "0.0.0.0/0", :method => "trust" },
+      { :type => "hostssl",  :db => "replication", :user => "all", :addr => "0.0.0.0/0", :method => "trust" },
       { :type => "local",  :db => "replication", :user => "postgres", :method => "trust" }
     ]
   }
@@ -78,7 +81,7 @@ Vagrant.configure("2") do |config|
       chef.json["postgresql"] = postgresql.deep_merge({
         "conf" => {
           "archive_mode" => "on",
-          "archive_command" => 'rsync -aq %p postgres@slave1.example.internal:/var/lib/postgresql/9.2/archive/%f',
+          "archive_command" => 'rsync -aq %p postgres@33.33.33.73:/var/lib/postgresql/9.2/archive/%f',
           "archive_timeout" => 3600
         },
         "databases" => [
@@ -90,7 +93,6 @@ Vagrant.configure("2") do |config|
           }
         ]
       })
-      puts "hash: #{chef.json}"
     end
   end
 
@@ -109,10 +111,23 @@ Vagrant.configure("2") do |config|
     end
   end
 
+  # The WAL archives are transferred by rsync. This requires passwordless SSH.
+  # For now manually generate a key pair on master and copy the public key to 
+  # authorized_keys on the slave.
+
+  # To get replication up and running follow the instructions here:
+  # http://bartek.im/blog/2012/12/04/postgresql-92-streaming-primer.html
+
+  # Other useful links:
+  #  * https://bradmontgomery.net/blog/streaming-replication-in-postgresql-91/
+  #  * http://eggie5.com/15-setting-up-pg9-streaming-replication
+
+
+
   #standby_mode = 'on' # enables stand-by (readonly) mode
   #
   ## Connect to the master postgres server using the replicator user we created.
-  #primary_conninfo = 'host=pgmaster.mysite.internal port=5432 user=replicator'
+  #primary_conninfo = 'host=<ip of slave> port=5432 user=replicator'
   #
   ## Specifies a trigger file whose presence should cause streaming replication to
   ## end (i.e., failover).
